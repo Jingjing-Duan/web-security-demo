@@ -28,15 +28,6 @@ function init_secure_session() {
         
         session_start();
         
-        // Set session timeout (30 minutes)
-        if (!isset($_SESSION['created'])) {
-            $_SESSION['created'] = time();
-        } else if (time() - $_SESSION['created'] > 1800) {
-            // Session expired, destroy and restart
-            session_regenerate_id(true);
-            $_SESSION = array();
-            $_SESSION['created'] = time();
-        }
     }
 }
 
@@ -118,6 +109,26 @@ function require_login(): void {
         header('Location: index.php?error=' . urlencode('Please login first'));
         exit;
     }
+
+        // -----------------------------
+    // SESSION TIMEOUT CHECK
+    // -----------------------------
+    $timeout = 900; // 15 minutes
+    //$timeout = 5; // 15 minutes
+
+    if (isset($_SESSION['last_activity']) &&
+        time() - $_SESSION['last_activity'] > $timeout) {
+
+        // 超时 → 注销并跳回登录
+        session_unset();
+        session_destroy();
+        header("Location: index.php?error=Session expired. Please login again.");
+        exit;
+    }
+
+    // 刷新时间戳
+    $_SESSION['last_activity'] = time();
+
 }
 
 /**

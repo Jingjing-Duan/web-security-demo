@@ -12,6 +12,9 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $error = $_GET['error'] ?? '';
+
+$debugSQL = $_GET['sql'] ?? '';
+$dbError = $_GET['dberror'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -27,17 +30,32 @@ $error = $_GET['error'] ?? '';
             <h1>🔓 Login System <span class="badge badge-danger">VULNERABLE</span></h1>
             <p>This version demonstrates common security vulnerabilities</p>
         </header>
+        <?php if ($debugSQL): ?>
+            <div class="card" style="background:#fff7e6;">
+                <h2>🔍 Executed SQL (VULNERABLE)</h2>
+                <pre><?php echo htmlspecialchars($debugSQL); ?></pre>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($dbError): ?>
+            <div class="card" style="background:#ffecec;">
+                <h2>❌ SQL Error (LEAKED)</h2>
+                <pre><?php echo htmlspecialchars($dbError); ?></pre>
+            </div>
+        <?php endif; ?>
 
         <div class="warning-box">
             <h3>⚠️ Security Warning</h3>
             <p>This login form is vulnerable to <strong>SQL Injection</strong>. Try these attack payloads:</p>
             <ul style="margin: 10px 0 0 20px;">
-                <li>Username: <code>' OR '1'='1' --</code></li>
-                <li>Username: <code>admin'--</code></li>
-                <li>Username: <code>' UNION SELECT 1,username,password FROM users--</code></li>
+                <li>Username: admin <br>
+                    Password: <code>' OR '1'='1' </code></li>
+                <li>Username: admin'; <br>
+                    Password: <code>anything</code></li>
+                <li>Username: admin' AND (SELECT 1 FROM no_table) -- <br>
+                    Password: <code>anything</code></li>                    
             </ul>
         </div>
-
         <div class="card">
             <h2>Login</h2>
             
@@ -49,7 +67,7 @@ $error = $_GET['error'] ?? '';
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required 
-                           placeholder="Enter username (try SQL injection!)">
+                           placeholder="Enter username">
                 </div>
                 
                 <div class="form-group">

@@ -10,6 +10,10 @@
  */
 session_start();
 
+$search = $_GET['search'] ?? '';
+$isSearching = !empty($search);
+
+
 // Check if logged in
 if (!isset($_SESSION['user_id'])) {
     header('Location: index.php?error=Please login first');
@@ -24,7 +28,8 @@ $success = '';
 // Handle comment submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['comment'])) {
     // VULNERABLE: No input sanitization!
-    $comment = $_POST['comment'];
+    //$comment = $_POST['comment'];
+    $comment = SQLite3::escapeString($_POST['comment']);
     $user_id = $_SESSION['user_id'];
     
     // VULNERABLE: SQL Injection possible!
@@ -84,9 +89,12 @@ $comments = $db->query("
             <h3>⚠️ XSS Vulnerability Demo</h3>
             <p>Try posting these malicious comments:</p>
             <ul style="margin: 10px 0 0 20px;">
-                <li><code>&lt;script&gt;alert('XSS!')&lt;/script&gt;</code></li>
-                <li><code>&lt;img src=x onerror="alert('Hacked!')"&gt;</code></li>
-                <li><code>&lt;a href="javascript:alert(document.cookie)"&gt;Click me&lt;/a&gt;</code></li>
+                <li>Stored XSS <br>
+                    <code>&lt;script&gt;alert('XSS!')&lt;/script&gt;</code></li>
+                <li>Reflected XSS <br>
+                    <code>&lt;script&gt;alert('RXSS')&lt;/script&gt;</code></li>                    
+                <li>HTML-based XSS（onerror） <br>
+                    <code>&lt;img src=x onerror="alert('Hacked!')"&gt;</code></li>
             </ul>
         </div>
 
@@ -103,7 +111,20 @@ $comments = $db->query("
         <?php endif; ?>
 
         <div class="card">
-            <h2>Post a Comment</h2>
+            <h2>Search Comments (Reflected XSS Demo)</h2>
+
+            <form method="GET" action="comments.php">
+                <div class="form-group">
+                    <label for="search">Search term:</label>
+                    <input type="text" id="search" name="search"
+                        placeholder="<script>alert('Reflected XSS')</script>">
+                </div>
+                <button type="submit" class="btn btn-danger">Search (Vulnerable)</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Post a Comment (Stored XSS Demo)</h2>
             <form action="comments.php" method="POST">
                 <div class="form-group">
                     <label for="comment">Your Comment</label>
@@ -114,9 +135,22 @@ $comments = $db->query("
             </form>
         </div>
 
+<?php if ($isSearching): ?>
+
+    <div class="card" style="background:#fff7e6;">
+        <h2>Search Results (VULNERABLE)</h2>
+
+        <p><strong>You searched for:</strong></p>
+        <div style="background:#fff; padding:10px; border:1px solid #ddd;">
+            <?= $search ?>   <!-- VULNERABLE: reflected XSS -->
+        </div>
+    </div>
+
+    <?php else: ?>
+
         <div class="card">
             <h2>All Comments</h2>
-            
+
             <?php 
             $hasComments = false;
             while ($comment = $comments->fetchArray(SQLITE3_ASSOC)): 
@@ -124,31 +158,28 @@ $comments = $db->query("
             ?>
                 <div class="comment">
                     <div class="comment-header">
-                        <span class="comment-author"><?php echo $comment['username']; ?></span>
-                        <span class="comment-date"><?php echo $comment['created_at']; ?></span>
+                        <span class="comment-author"><?= $comment['username']; ?></span>
+                        <span class="comment-date"><?= $comment['created_at']; ?></span>
                     </div>
+
                     <div class="comment-content">
-                        <?php 
-                        // VULNERABLE: Direct output without htmlspecialchars!
-                        // This allows stored XSS attacks
-                        echo $comment['content']; 
-                        ?>
+                        <?= $comment['content']; ?> <!-- Stored XSS remains active -->
                     </div>
+
                     <div class="comment-actions">
-                        <!-- VULNERABLE: No ownership check, anyone can delete -->
-                        <a href="comments.php?delete=<?php echo $comment['id']; ?>" 
-                           class="btn btn-sm btn-secondary"
-                           onclick="return confirm('Delete this comment?')">Delete</a>
+                        <a href="comments.php?delete=<?= $comment['id']; ?>" 
+                        class="btn btn-sm btn-secondary"
+                        onclick="return confirm('Delete this comment?')">Delete</a>
                     </div>
                 </div>
             <?php endwhile; ?>
-            
+
             <?php if (!$hasComments): ?>
-                <p style="color: #888; text-align: center; padding: 20px;">
-                    No comments yet. Be the first to post!
-                </p>
+                <p style="text-align:center; color:#888; padding:20px;">No comments yet.</p>
             <?php endif; ?>
         </div>
+
+    <?php endif; ?>
 
         <div class="card">
             <h2>Vulnerability Explanation</h2>
