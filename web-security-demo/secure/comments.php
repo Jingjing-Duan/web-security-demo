@@ -23,6 +23,9 @@ $success = '';
 $user_id = get_current_user_id();
 $username = get_current_username();
 
+$search = $_GET['search'] ?? '';
+$isSearching = !empty($search);
+
 // Handle comment submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['comment'])) {
     // Verify CSRF token
@@ -84,14 +87,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     }
 }
 
-// Fetch all comments with usernames
+// Fetch comments (supports search)
 try {
-    $stmt = $pdo->query("
-        SELECT c.id, c.content, c.created_at, c.user_id, u.username 
-        FROM comments c 
-        JOIN users u ON c.user_id = u.id 
-        ORDER BY c.created_at DESC
-    ");
+    if ($isSearching) {
+        // SECURE: Search with prepared statements + wildcard
+        $stmt = $pdo->prepare("
+            SELECT c.id, c.content, c.created_at, c.user_id, u.username 
+            FROM comments c 
+            JOIN users u ON c.user_id = u.id 
+            WHERE c.content LIKE :search
+            ORDER BY c.created_at DESC
+        ");
+        $stmt->execute([
+            ':search' => '%' . $search . '%'
+        ]);
+    } else {
+        // SECURE: Fetch all comments
+        $stmt = $pdo->query("
+            SELECT c.id, c.content, c.created_at, c.user_id, u.username 
+            FROM comments c 
+            JOIN users u ON c.user_id = u.id 
+            ORDER BY c.created_at DESC
+        ");
+    }
+
     $comments = $stmt->fetchAll();
 } catch (PDOException $e) {
     error_log('Comment fetch error: ' . $e->getMessage());
@@ -156,6 +175,20 @@ try {
         <?php if ($success): ?>
             <div class="alert alert-success"><?php echo encode_output($success); ?></div>
         <?php endif; ?>
+
+        <!-- SEARCH BAR -->
+        <div class="card">
+            <h2>Search Comments (Secure)</h2>
+            <form method="GET">
+                <div class="form-group">
+                    <label>Search term:</label>
+                    <input type="text" name="search" 
+                        value="<?= htmlspecialchars($search) ?>"
+                        placeholder="Search safely...">
+                </div>
+                <button type="submit" class="btn btn-success">Search (Safe)</button>
+            </form>
+        </div>     
 
         <div class="card">
             <h2>Post a Comment</h2>

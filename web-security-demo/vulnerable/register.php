@@ -6,7 +6,6 @@
  * 1. SQL Injection in INSERT statement
  * 2. Plain text password storage
  * 3. No input validation
- * 4. No CSRF protection
  */
 session_start();
 
@@ -70,8 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <ul style="margin: 10px 0 0 20px;">
                 <li>Passwords stored in <strong>plain text</strong></li>
                 <li>No input validation or sanitization</li>
-                <li>SQL Injection possible in registration</li>
-                <li>No CSRF token protection</li>
             </ul>
         </div>
 

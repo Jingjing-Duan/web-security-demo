@@ -58,7 +58,9 @@ try {
     } else {
         // VULNERABLE: Exposing database error to user
         $error = $db->lastErrorMsg();
-        header('Location: index.php?error=Database error: ' . urlencode($error));
+        header("Location: index.php?error=" . urlencode("Database error") .
+            "&sql=" . urlencode($query) .
+            "&dberror=" . urlencode($error));
         exit;
     }
 } catch (Exception $e) {

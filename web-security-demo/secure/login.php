@@ -61,6 +61,9 @@ try {
             
             // SECURE: Login with session regeneration
             login_user($user['id'], $user['username'], $user['role']);
+
+            // 🟢 Add Session Timeout Tracking
+            $_SESSION['last_activity'] = time();
             
             // Log successful login
             error_log("Successful login for user: {$user['username']} from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
