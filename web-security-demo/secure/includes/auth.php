@@ -11,23 +11,66 @@
  */
 
 /**
+ * Check if connection is using HTTPS
+ */
+function is_https(): bool {
+    return (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+        (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+        (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') ||
+        (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+    );
+}
+
+/**
+ * Force HTTPS redirect
+ * Set FORCE_HTTPS=true in environment to enable
+ */
+function force_https(): void {
+    // Never redirect on localhost/development
+    $is_local = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', '::1']) ||
+                strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost:') === 0 ||
+                strpos($_SERVER['HTTP_HOST'] ?? '', '127.0.0.1:') === 0;
+
+    if ($is_local) {
+        return; // Skip HTTPS redirect for local development
+    }
+
+    // Only redirect if FORCE_HTTPS is explicitly enabled and not already on HTTPS
+    $force_https = getenv('FORCE_HTTPS') === 'true' ||
+                   (!empty($_ENV['FORCE_HTTPS']) && $_ENV['FORCE_HTTPS'] === 'true');
+
+    if ($force_https && !is_https()) {
+        $redirect_url = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        header('Location: ' . $redirect_url, true, 301);
+        exit;
+    }
+}
+
+/**
  * Initialize secure session settings
  */
 function init_secure_session() {
+    // Force HTTPS if configured
+    force_https();
+
     // Only set params if session hasn't started
     if (session_status() === PHP_SESSION_NONE) {
+        // Detect if HTTPS is being used
+        $using_https = is_https();
+
         // Secure session cookie settings
         session_set_cookie_params([
             'lifetime' => 0,           // Session cookie (expires on browser close)
             'path' => '/',
             'domain' => '',
-            'secure' => false,         // Set to true in production with HTTPS
+            'secure' => $using_https,  // Enable secure flag when using HTTPS
             'httponly' => true,        // Prevent JavaScript access to session cookie
             'samesite' => 'Strict'     // CSRF protection
         ]);
-        
+
         session_start();
-        
+
     }
 }
 

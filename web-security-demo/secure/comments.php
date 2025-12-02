@@ -13,6 +13,7 @@
 require_once 'includes/db.php';
 require_once 'includes/auth.php';
 require_once 'includes/sanitize.php';
+require_once 'includes/crypto.php';
 
 init_secure_session();
 require_login();
@@ -41,11 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['comment'])) {
             $error = 'Comment too long (max 1000 characters).';
         } else {
             try {
+                // SECURE: Encrypt PII (comment content) using AEAD
+                $encrypted_comment = encrypt_data($comment);
+
                 // SECURE: Use prepared statement
-                $stmt = $pdo->prepare("INSERT INTO comments (user_id, content) VALUES (:user_id, :content)");
+                $stmt = $pdo->prepare("INSERT INTO comments (user_id, content, content_encrypted) VALUES (:user_id, :content, :encrypted)");
                 $stmt->execute([
                     ':user_id' => $user_id,
-                    ':content' => $comment
+                    ':content' => $comment,
+                    ':encrypted' => $encrypted_comment
                 ]);
                 $success = 'Comment posted successfully!';
             } catch (PDOException $e) {
@@ -165,6 +170,7 @@ try {
                 <li>CSRF tokens protect against forged requests</li>
                 <li>Users can only delete their own comments</li>
                 <li>All actions are audit logged</li>
+                <li>Comments encrypted at rest using AEAD (XChaCha20-Poly1305/AES-256-GCM)</li>
             </ul>
         </div>
 

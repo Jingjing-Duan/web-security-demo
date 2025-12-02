@@ -1,0 +1,32 @@
+# Encryption Keys - NEVER commit these!
+data/.encryption_key
+web-security-demo/data/.encryption_key
+**/data/.encryption_key
+
+# Database files
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Backups
+backups/
+**/backups/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

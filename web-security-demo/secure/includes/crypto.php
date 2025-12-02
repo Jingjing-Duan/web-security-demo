@@ -9,31 +9,50 @@
  * - HMAC for integrity verification
  */
 
-// Encryption key - In production, store this in environment variable or secure key management
-// For demo purposes, we generate a key if not exists
+// Encryption key - PRODUCTION: Use environment variable or secret manager
+// FALLBACK: For demo/development, use file-based key (excluded from backups)
 define('ENCRYPTION_KEY_FILE', __DIR__ . '/../../data/.encryption_key');
 
 /**
- * Get or generate encryption key
+ * Get encryption key from environment variable or file fallback
+ *
+ * PRODUCTION: Set ENCRYPTION_KEY environment variable (base64-encoded 32-byte key)
+ * Example: export ENCRYPTION_KEY=$(openssl rand -base64 32)
  */
 function get_encryption_key(): string {
-    if (file_exists(ENCRYPTION_KEY_FILE)) {
-        return file_get_contents(ENCRYPTION_KEY_FILE);
+    // PRODUCTION: Use environment variable
+    if (!empty($_ENV['ENCRYPTION_KEY'])) {
+        $key = base64_decode($_ENV['ENCRYPTION_KEY']);
+        if ($key !== false && strlen($key) === 32) {
+            return $key;
+        }
+        error_log('WARNING: ENCRYPTION_KEY environment variable is invalid (must be base64-encoded 32 bytes)');
     }
-    
-    // Generate new 256-bit key
+
+    // FALLBACK: Use file-based key for development/demo
+    // Note: This file should be excluded from backups and version control
+    if (file_exists(ENCRYPTION_KEY_FILE)) {
+        $key = file_get_contents(ENCRYPTION_KEY_FILE);
+        if (strlen($key) === 32) {
+            return $key;
+        }
+    }
+
+    // Generate new 256-bit key if none exists
     $key = random_bytes(32);
-    
+
     // Ensure directory exists
     $dir = dirname(ENCRYPTION_KEY_FILE);
     if (!is_dir($dir)) {
         mkdir($dir, 0700, true);
     }
-    
+
     // Save key securely
     file_put_contents(ENCRYPTION_KEY_FILE, $key);
     chmod(ENCRYPTION_KEY_FILE, 0600);
-    
+
+    error_log('WARNING: Generated new encryption key in file. In production, use ENCRYPTION_KEY environment variable!');
+
     return $key;
 }
 
